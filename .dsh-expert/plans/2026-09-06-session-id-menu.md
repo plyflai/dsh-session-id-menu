@@ -255,4 +255,5 @@ ESCAPE_AFTER_COPY_MS=900 / ESCAPE_AFTER_MISS_MS=50 /
 ## Commits
 
 - `2d0ddd1` feat: dsh-session-id-menu 会话ID 复制项 — 纯 DOM 客户端（code r4 PASS，42/42 测试）（client.js / src/index.js / tests×3 / package.json / cordis.patch.yml）
-- `e5e8490` docs: 行为契约 README + 方案评审史（plan r1-r3 + code r1-r4，F8-F12 全闭合）（README.md / 本方案 / .gitignore .codegraph/）
+- `ad20229` docs: 行为契约 README + 方案评审史（plan r1-r3 + code r1-r4，F8-F12 全闭合）（README.md / 本方案 / .gitignore .codegraph/）
+（两段式提交；`## Commits` 的最终 SHA 由 ledger 提交回填——两段式提交内的自引用 SHA 恒滞后一次 amend）
