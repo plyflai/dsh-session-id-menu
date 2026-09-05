@@ -38,8 +38,13 @@
 ## 宿主侧
 
 `src/index.js` 导出 `name`（稳定 id）+ 空 `apply`——纯 DOM 插件，宿主侧无状态。
-`dsh.client` 声明 `platform: 'web'`，`inject: ['sessions', 'workspaces']`（信息性依赖，
-fiber 等待这两个 store 就绪后激活 client 模块）。`cordis.patch.yml` 以
+`dsh.client` 声明 `platform: 'web'`（manifest `inject` = 两个 controller 包，信息性依赖，
+fiber 等待对应 store 就绪后激活 client 模块）；client bundle 级
+`exports.inject = ['sessions', 'workspaces', 'slots']`——其中 `slots` 为超级模组注入
+预检（`dev_inject_plugin` → `clientSkeletonProblems`）的骨架标记：预检文本校验 inject
+含 `slots` 且存在带已知 slot 名的 `register()`；纯 DOM 形态的 register 标记恒 false、
+运行时从不生效。client bundle 位于规范位置 `lib/client.js`（宿主 client-modules 经
+`exports['./client']` 解析，布局无关）。`cordis.patch.yml` 以
 `insert: id: dsh-session-id-menu` 追加装配。
 
 ## 验证阶梯

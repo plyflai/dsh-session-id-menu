@@ -219,7 +219,9 @@ test('en: kebab pointerdown + menu appears -> Session ID item injected (4 items,
   const { ctx } = t
   const mod = t.loaded()[0].factory()
   mod.apply(ctx)
-  assert.deepEqual(mod.inject, ['sessions', 'workspaces'])
+  // 'slots' declared for the super-module precheck skeleton (pure-DOM form:
+  // the register marker is guarded off — see lib/client.js).
+  assert.deepEqual(mod.inject, ['sessions', 'workspaces', 'slots'])
 
   const { row, kebabInner } = t.makeRow(t.flatTree, { title: 'proj' })
   const { menu } = t.makeMenu()

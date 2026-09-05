@@ -61,7 +61,12 @@ test('lib/client.js: __ModuleLoader__ module, zero imports, sessions+workspaces 
   assert.match(src, /window\.__ModuleLoader__\.load\(\{/)
   assert.match(src, /id: 'dsh-session-id-menu'/)
   assert.match(src, /exports\.apply = apply/)
-  assert.match(src, /exports\.inject = \['sessions', 'workspaces'\]/)
+  assert.match(src, /exports\.inject = \['sessions', 'workspaces', 'slots'\]/)
+  // Super-module precheck skeleton markers (clientSkeletonProblems regexes):
+  // inject list contains 'slots' and a register() with a known slot name
+  // (pure-DOM form: the register is guarded off, text-validation only).
+  assert.match(src, /register\(\{[\s\S]*?name:\s*['"]conversation\.view['"]/)
+  assert.match(src, /if \(false && ctx\.slots\)/)
   assert.match(src, /ctx\.effect\(/)
   assert.match(src, /data-dsh-session-id/)
   assert.match(src, /data-dsh-sid/)

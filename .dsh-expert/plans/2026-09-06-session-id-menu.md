@@ -84,6 +84,7 @@ Web GUI 侧边栏每个会话行的三点菜单（⋯）当前硬编码三项（
 - **runtime**：`dev_inject_plugin {dir: <本仓根>}`（唯一输入 = source-only JS 包，**无 build 步骤**——直接注入证据：super-injector `inject()` 仅需 package.json+name：junction → `ctx.loader.create` → `refreshClientRow`，不要求 lib（super-injector src/index.ts:1907-1975）；其 self-test 注入 src-only tmpDir 无 lib 通过（src/index.ts:3022-3056）；dsh-workspace-folder-order 先例 main=src/index.js 无构建）→ `dev_plugin_status` / `dev_injected_list` 查 host ✓ 与 client 行 → Playwright headless（`apps/web/node_modules/playwright`）活体验证：自签 cookie（机制见 browser-auth.ts：cookie 名 = `dsh-auth-` + b64url(sha256(authority))，值 = `v1.<b64url(JSON{version,authority,issuedAt,expiresAt})>.<b64url(HMAC-SHA256(secretBuf,body))>`，secret = `$DSH_HOME/.credentials.yaml` `client-connection/browser-session`；已验证 curl `/` 200）→ 点目标会话行 ⋯（目标 = 本会话 `session-c0406149-aa13-4279-85cf-a0f27336de34`，displayTitle = `deepseek-harness`，`aria-selected` 行）→ 截图（第 4 项可见）→ 点击 → `navigator.clipboard.writeText` hook 读回 == 目标 id → 截图序列 + `/opt/homebrew/bin/ffmpeg` 合成 GIF（GIF = runtime/visual evidence）。
 - **distribution**：`npm pack`（产物 `dsh-session-id-menu-0.1.0.tgz`）→ 解包到 tmp 目录 → 断言含 package.json、lib/client.js、src/index.js、cordis.patch.yml、README.md 且 `exports['./client']` 目标在 tarball 内（files 清单闭合）。
   - **Phase 2 布局适配**（注入前校验发现）：超级模组 `dev_inject_plugin` 预检硬编码 client bundle 规范位置 `lib/client.js`（`@dsh-external/dsh-super-injector` lib/index.js:2216-2226 `buildFreshnessProblems`：声明 `dsh.client` 则必须存在 `lib/client.js` 且含 `__ModuleLoader__` 特征）；宿主 client-modules（packages/client/modules/src/index.ts:760-765）经 `exports['./client']` 解析 bundle 路径（`clientExportOf`），布局无关。故 client bundle 由包根 `client.js` 移入 `lib/client.js`（`git mv`，内容不变），exports/`files`/tests/README 同步；42/42 复绿。
+  - **Phase 2 预检骨架适配**（注入第二次阻断发现）：`clientSkeletonProblems`（同一 lib/index.js，紧随 freshness 检查）对存在 `lib/client.js` 的包做两条正则文本校验——① `inject\s*=\[[^\]]*'slots'`（inject 数组含 `'slots'`）② `register(\{...name: '<已知 slot 名>'`（14 个已知 slot 之一）。脚手架的 client 形态 = slot 面板（`ctx.slots.register({name: ...})`）；本插件为纯 DOM 形态（不注册面板），故：bundle 级 `exports.inject` 追加 `'slots'`（运行时仅提供未使用的 `ctx.slots`，无副作用），并在 `apply` 头部加恒 false 守卫的 `ctx.slots.register({ name: 'conversation.view', ... })` 死分支标记（注释标明预检骨架、运行时从不生效）。参照系：同 profile 现役外部插件 dsh-ui-tweak（根级 client.js + slots 形态）证实 bundle 级 inject 用短服务名（'slots'/'sessions'/'workspaces'）。
 
 ### 9 完成定义
 - Acceptance criteria 1–5 全过（四层证据齐）；`dsh_expert_audit` 无阻断发现；两段式提交完成；方案归档。
@@ -99,7 +100,7 @@ Web GUI 侧边栏每个会话行的三点菜单（⋯）当前硬编码三项（
 
 ```
 window.__ModuleLoader__.load({ id: 'dsh-session-id-menu', factory() })
-module.exports = { apply(ctx), inject: ['sessions','workspaces'] }
+module.exports = { apply(ctx), inject: ['sessions','workspaces','slots'] }  // 'slots' = 超级模组注入预检骨架标记（见 Phase 2 布局适配）
 
 apply(ctx):
   sessions = ctx.get('sessions').list
