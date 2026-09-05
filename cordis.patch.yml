@@ -1,0 +1,5 @@
+# dsh-session-id-menu: browser-only "Session ID" menu item for Session rows.
+
+- insert:
+    - id: dsh-session-id-menu
+      name: 'dsh-session-id-menu'
