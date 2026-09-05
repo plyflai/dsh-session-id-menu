@@ -1,0 +1,4 @@
+.dsh-expert/*
+!.dsh-expert/plans/
+!.dsh-expert/brief.md
+.dsh-flow/
