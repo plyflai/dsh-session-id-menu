@@ -1,6 +1,6 @@
 # Plan: dsh-session-id-menu — 会话行 ⋯ 菜单新增「会话ID」复制项
 
-Status: active
+Status: done — 四层验证全 PASS（source 43/43 ×2 / package-shape 9 / runtime 活体剪贴板与磁盘 displayTitle 精确一致 / distribution npm pack tarball 5 文件齐）；dsh-expert-flow 实例 dsh-expert-flow-1788626070-45b6 至 done（rev32）
 Target: client-plugin (bundle basket) · web / browser DOM
 Branch: main
 
@@ -254,9 +254,17 @@ ESCAPE_AFTER_COPY_MS=900 / ESCAPE_AFTER_MISS_MS=50 /
 - code r2: FAIL — F10(contradiction) applied（F9 反查把全部 leaf 文本并入候选，未做到首个命中 leaf 优先：title 与 time 均为直接子 leaf span（Rows.tsx:467/:473），会话标题撞上另一会话的 time 文本（如 2m）时 time leaf 扩大候选、updatedAt 可能选错行；修复：leaf/other 按 DOM 顺序逐文本尝试、首个命中即停（title 先于 time 恒成立）；新增 'F10: title leaf and time leaf match different displayTitles -> only title candidates'（title=proj@100、time=2m 撞名 2m@900，断言复制 proj 而非更新的 2m））；F11(contradiction) applied（legacyCopy 异常路径（select/execCommand throw）遗留临时 textarea，违反 F4 无 owned DOM 残留；修复：finally 移除 + 清理失败不掩盖原结果；新增 execCommand-throw 与 select-throw 两例（无 textarea 残留 + 无 Copied + 50ms Escape），success/false 两既有例补无残留断言）；修复后 `node --test` = 40/40 ×2（behavior 31 + package-shape 9）；plan 实现契约（F10 逐文本首命中 + F11 finally）同步修订
 - code r3: FAIL — F12(contradiction) applied（correlation 未覆盖右侧 viewport clamp：宿主 Menu.tsx:120-141 对 align=start 的 portal 菜单执行 x = clamp(r.left, 12, vw-lw-12)，kebab 靠近 viewport 右缘时菜单被左拉到 vw-lw-12（menu.right = vw-12），可完全位于按钮左侧——leftOk（left 差 >12px）与 overlap（menu.right ≤ button.left）均 false，代码拒绝关联；修复：新增 rightClamp 分支——button.left + menu.width > vw-12（按钮未 clamp 位置溢出右缘）且 menu.right ≥ vw-12-12（菜单实际位于 clamp 边界），逐字验证宿主 clamp 数学；新增 'geometry: right viewport clamp -> injected'（vw=252、按钮 240..264、菜单 60..240 完全在按钮左侧，断言注入 4 项）与 'geometry: unrelated menu below the clamp bound -> no injection'（菜单 10..110，右缘 110 远低于边界 240，断言 no-op 3 项）；测试 stub window 增加 innerWidth（默认 1440 不触发右缘 clamp，既有几何用例不受影响）；修复后 `node --test` = 42/42 ×2（behavior 33 + package-shape 9）；plan 实现契约/伪代码/测试面（F12 右缘 clamp）同步修订
 - code r4: PASS — 复审确认三分支几何门（leftOk/overlap/rightClamp）闭合：rightClamp 条件与宿主 Menu.tsx:132-141 `x = min(max(r.left, 12), vw - lw - 12)` 逐字一致（br.left + mr.width > vw-12 为 clamp 触发条件逐字等价，mr.right ≥ vw-12-12 为菜单实际位于边界）；pending / 600ms 窗口 / 无标记 no-op 前置保留（F5 不变）；behavior.test.mjs:325-355 右侧 clamp fixture（菜单完全位于按钮左侧且 menu.right = vw-12 → 注入 4 项）与 clamp 边界下无关菜单 no-op（3 项）+ 既有 40px 左偏 no-op / overlap 注入回归覆盖；F7–F12、标题解析、disposal、生命周期未被 r4 改动破坏；42/42 source+package 报告与实现相符；Phase 1 代码审查门 PASS（reviewer 声明 Phase 2 runtime 剪贴板 / npm pack 属后续 Phase，不阻塞本门）
+- phase-2 runtime（非代码门轮次，留痕）：活体验证首点失败（点击无已复制闪标 / 剪贴板空 / 菜单不关）→ Playwright 仪器化诊断（click 目标捕获、writeText/execCommand 包裹、临时 `__sidDebug` 闭包探针）定位 `TypeError: sessions.getSnapshot is not a function` 未捕获于 click 监听器（宿主服务快照在公共 `.list` store：`ClientSessions.list` service.ts:191/263、`WorkspaceController.list` client/service.ts:89；活页探针 `typeof sessions.getSnapshot === 'undefined'` / `typeof sessions.list.getSnapshot === 'function'`）；修复 = `readListSnapshot` 助手（seam 缺失/读取抛错 → null → 静默 miss）+ 测试 stub seam 形状同步 + 新增行为测试，43/43 ×2；代码门范围不变（几何门/解析/反馈/disposal 均未动），提交 a1c1be4 / 503c05a / 8eaf5db
 
 ## Commits
 
+Phase 1（代码 + 文档两段式）：
 - `2d0ddd1` feat: dsh-session-id-menu 会话ID 复制项 — 纯 DOM 客户端（code r4 PASS，42/42 测试）（client.js / src/index.js / tests×3 / package.json / cordis.patch.yml）
 - `ad20229` docs: 行为契约 README + 方案评审史（plan r1-r3 + code r1-r4，F8-F12 全闭合）（README.md / 本方案 / .gitignore .codegraph/）
-（两段式提交；`## Commits` 的最终 SHA 由 ledger 提交回填——两段式提交内的自引用 SHA 恒滞后一次 amend）
+- `f62f0c5` chore: ledger 回填两段式提交 SHA 至方案 Commits 段（Phase 1 ledger）
+
+Phase 2（超级模组直注入适配 + 运行时 seam 修复）：
+- `a1c1be4` refactor: client bundle 移入规范位置 lib/client.js（超级模组预检 buildFreshnessProblems 硬编码 lib/client.js；宿主 client-modules 经 exports["./client"] 解析布局无关）+ exports/files/tests/README/plan 同步
+- `503c05a` feat: client bundle 超级模组注入预检骨架（inject 声明 slots + 恒 false 守卫的 register 标记；clientSkeletonProblems 正则文本校验）+ tests/README/plan 同步
+- `8eaf5db` fix: 快照 seam 适配 — sessions/workspaces 快照经 .list store 读取（活页 TypeError: sessions.getSnapshot is not a function；readListSnapshot 助手 + 测试 stub seam 同步 + seam 缺失行为测试，43/43）+ 移除临时 __sidDebug 探针 + plan Phase-2 注记
+（Phase 2 ledger = 本提交 `docs: plan-ledger 8eaf5db`；归档提交不入 ledger）
