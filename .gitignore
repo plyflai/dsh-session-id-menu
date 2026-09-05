@@ -3,3 +3,4 @@
 !.dsh-expert/brief.md
 .dsh-flow/
 .codegraph/
+*.tgz
