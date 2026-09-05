@@ -3,7 +3,7 @@
 给 Workspace 侧边栏每个会话行的 kebab 菜单追加一个 **Session ID** 复制项：点击后把该会话的
 `session.id`（如 `session-c0406149-...`）写入系统剪贴板，标签短暂变为 `Copied`（zh 环境为 `已复制`）。
 
-## 行为契约（plan v2，review r3 PASS；code r1 F8/F9 修复后更新）
+## 行为契约（plan r3 PASS 定稿；code r1–r4 迭代（F8–F12）至 code r4 PASS；phase-2 runtime seam 修复后同步）
 
 - **注入点**：点击任意会话行（`aria-selected` 存在，true/false 均可）的
   `aria-label="Session actions for {name}"` kebab 按钮后，监听 `document.body` 下新出现的
@@ -28,6 +28,11 @@
     限定到该 workspace 的 `sessionIds`；**workspaces 快照必须 `phase === 'ready'`，否则静默 miss（F7）**；
   - 分组 ungrouped 段（头行文本不匹配任何 workspace）：从全局集合中排除所有 workspace `sessionIds` 的并集。
   - sessions 快照非 ready 同样静默 miss。
+  - **快照读取 seam**：sessions/workspaces 快照经公共 `.list` store 读取——`sessions.list.getSnapshot()` /
+    `workspaces.list.getSnapshot()`（服务顶层**没有** `getSnapshot`；宿主 `ClientSessions.list`
+    service.ts:191/263、`WorkspaceController.list` client/service.ts:89）。seam 缺失或读取抛错 → null →
+    静默 miss（`lib/client.js` `readListSnapshot`，:190-198——phase-2 活体首点
+    `TypeError: sessions.getSnapshot is not a function` 的修复契约；接手改宿主快照读取时先看这里）。
 - **复制语义**：`navigator.clipboard.writeText` resolve → `Copied` 1200ms 后恢复 + 900ms 派发
   Escape 关闭菜单；reject/无 API → `document.execCommand('copy')` 回退（textarea + select，
   临时 textarea 在 finally 移除——success/false/throw 三路径无 DOM 残留，code r2 F11）；
@@ -49,10 +54,10 @@ fiber 等待对应 store 就绪后激活 client 模块）；client bundle 级
 
 ## 验证阶梯
 
-1. **source**：`node --test tests/*.test.mjs` —— 33 个 behavior 用例（注入 / 归属关联 / 三上下文
+1. **source**：`node --test tests/*.test.mjs` —— 34 个 behavior 用例（注入 / 归属关联 / 三上下文
    解析 / F7 / F8-F9 状态槽（Idle/Running/Completed）与未选中行 / F10 title-time 撞名 /
    F11 legacyCopy 残留（execCommand throw / select throw）/ F12 右缘 viewport clamp（菜单左拉至 clamp
-   边界且完全位于按钮左侧 → 注入；clamp 边界下无关菜单 → no-op）/ 复制语义 / 生命周期）+ 9 个
+   边界且完全位于按钮左侧 → 注入；clamp 边界下无关菜单 → no-op）/ 复制语义 / 生命周期 / seam 缺失静默 miss（Phase-2））+ 9 个
    package-shape 断言，基于手写 DOM stub（无 jsdom）。
 2. **package**：package-shape 测试覆盖 manifest / files / exports 与 dsh-workspace-folder-order
    先例的一致性。
