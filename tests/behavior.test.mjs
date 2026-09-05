@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { createDom } from './dom-stub.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const CLIENT_SRC = readFileSync(path.join(__dirname, '..', 'client.js'), 'utf8')
+const CLIENT_SRC = readFileSync(path.join(__dirname, '..', 'lib', 'client.js'), 'utf8')
 
 const tick = () => new Promise((r) => setImmediate(r))
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))

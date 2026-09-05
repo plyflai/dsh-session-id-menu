@@ -6,7 +6,7 @@
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js",
-    "./client": "./client.js",
+    "./client": "./lib/client.js",
     "./package.json": "./package.json"
   },
   "dsh": {
@@ -23,7 +23,7 @@
   },
   "files": [
     "src",
-    "client.js",
+    "lib/client.js",
     "cordis.patch.yml",
     "README.md"
   ],

@@ -54,5 +54,5 @@ fiber 等待这两个 store 就绪后激活 client 模块）。`cordis.patch.yml
 3. **runtime**：`dev_inject_plugin`（超级模组直接注入）+ `dev_plugin_status` 列出 fiber 状态，
    再用 Playwright 对 3080 实况 GUI 断言：会话行 kebab 菜单含 `Session ID` 项、点击后
    `navigator.clipboard.readText()` 等于目标 session id、标签闪 `Copied`。
-4. **distribution**：`npm pack` 产物解包断言 tarball 含 package.json / client.js /
+4. **distribution**：`npm pack` 产物解包断言 tarball 含 package.json / lib/client.js /
    src/index.js / cordis.patch.yml / README.md。

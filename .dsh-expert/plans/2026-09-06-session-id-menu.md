@@ -80,9 +80,10 @@ Web GUI 侧边栏每个会话行的三点菜单（⋯）当前硬编码三项（
   - id 解析：flat-workspace（行属 workspace 但 flat 显示 → 不收窄，断言预期 id）、flat-ungrouped、grouped 双 workspace 同标题（头行 scope 断言正确 id）、grouped 未分组桶（workspace 会话 vs 未分组同标题 → 断言未分组者）、同组同标题 updatedAt 决胜、**grouped-workspace-pending**（grouped 头行存在但 workspaces phase=pending/error → 返回 null、无错误复制，含同标题 workspace/ungrouped 并存）、**flat-workspaces-pending**（flat 在 workspaces pending 时仍按 flat 规则正常解析）。
   - 复制反馈：原生成功（writeText resolve → 标签"已复制" + 剪贴板内容）、fallback 成功（writeText reject + execCommand true → 标签"已复制"）、双失败（双 reject → 标签不变 + 静默关闭）。
   - 关闭与生命周期：复制后 900ms 派发 Escape、miss 后 50ms 派发、dispose-before-rAF（queue 不处理不注入）、dispose-before-copy-timers（无标签变更无 Escape）、open-menu unload（存活菜单中自有项/标记移除、监听随节点移除）。
-- **package**：`tests/package-shape.test.mjs` — 加载 package.json：name/version/type 存在；`exports['.']` 与 `exports['./client']` 指向存在的文件且文件可加载（client 入口经 `__ModuleLoader__` 桩执行后导出 apply/inject）；`dsh.client.platform === 'web'` 且 `inject` 为数组；`files` 清单覆盖 client.js / src / cordis.patch.yml / README.md；main 可解析。
+- **package**：`tests/package-shape.test.mjs` — 加载 package.json：name/version/type 存在；`exports['.']` 与 `exports['./client']` 指向存在的文件且文件可加载（client 入口经 `__ModuleLoader__` 桩执行后导出 apply/inject）；`dsh.client.platform === 'web'` 且 `inject` 为数组；`files` 清单覆盖 lib/client.js / src / cordis.patch.yml / README.md；main 可解析。
 - **runtime**：`dev_inject_plugin {dir: <本仓根>}`（唯一输入 = source-only JS 包，**无 build 步骤**——直接注入证据：super-injector `inject()` 仅需 package.json+name：junction → `ctx.loader.create` → `refreshClientRow`，不要求 lib（super-injector src/index.ts:1907-1975）；其 self-test 注入 src-only tmpDir 无 lib 通过（src/index.ts:3022-3056）；dsh-workspace-folder-order 先例 main=src/index.js 无构建）→ `dev_plugin_status` / `dev_injected_list` 查 host ✓ 与 client 行 → Playwright headless（`apps/web/node_modules/playwright`）活体验证：自签 cookie（机制见 browser-auth.ts：cookie 名 = `dsh-auth-` + b64url(sha256(authority))，值 = `v1.<b64url(JSON{version,authority,issuedAt,expiresAt})>.<b64url(HMAC-SHA256(secretBuf,body))>`，secret = `$DSH_HOME/.credentials.yaml` `client-connection/browser-session`；已验证 curl `/` 200）→ 点目标会话行 ⋯（目标 = 本会话 `session-c0406149-aa13-4279-85cf-a0f27336de34`，displayTitle = `deepseek-harness`，`aria-selected` 行）→ 截图（第 4 项可见）→ 点击 → `navigator.clipboard.writeText` hook 读回 == 目标 id → 截图序列 + `/opt/homebrew/bin/ffmpeg` 合成 GIF（GIF = runtime/visual evidence）。
-- **distribution**：`npm pack`（产物 `dsh-session-id-menu-0.1.0.tgz`）→ 解包到 tmp 目录 → 断言含 package.json、client.js、src/index.js、cordis.patch.yml、README.md 且 `exports['./client']` 目标在 tarball 内（files 清单闭合）。
+- **distribution**：`npm pack`（产物 `dsh-session-id-menu-0.1.0.tgz`）→ 解包到 tmp 目录 → 断言含 package.json、lib/client.js、src/index.js、cordis.patch.yml、README.md 且 `exports['./client']` 目标在 tarball 内（files 清单闭合）。
+  - **Phase 2 布局适配**（注入前校验发现）：超级模组 `dev_inject_plugin` 预检硬编码 client bundle 规范位置 `lib/client.js`（`@dsh-external/dsh-super-injector` lib/index.js:2216-2226 `buildFreshnessProblems`：声明 `dsh.client` 则必须存在 `lib/client.js` 且含 `__ModuleLoader__` 特征）；宿主 client-modules（packages/client/modules/src/index.ts:760-765）经 `exports['./client']` 解析 bundle 路径（`clientExportOf`），布局无关。故 client bundle 由包根 `client.js` 移入 `lib/client.js`（`git mv`，内容不变），exports/`files`/tests/README 同步；42/42 复绿。
 
 ### 9 完成定义
 - Acceptance criteria 1–5 全过（四层证据齐）；`dsh_expert_audit` 无阻断发现；两段式提交完成；方案归档。
@@ -94,7 +95,7 @@ Web GUI 侧边栏每个会话行的三点菜单（⋯）当前硬编码三项（
 - R4 宿主升级改行容器层级（flat/grouped 结构变化）→ 上下文判定基于 `sectionHeader(row)` 祖先遍历（子树 role=tree / 头行存在性）；失效模式 = 降级为 flat 语义（标题 + updatedAt），不复制错行（组域收窄只是精度优化）。
 - 回滚 = `dev_uninject_plugin`（超级模组路径）或摘 patch 条目（正式路径）；无数据迁移。
 
-## 实现契约（client.js）
+## 实现契约（lib/client.js）
 
 ```
 window.__ModuleLoader__.load({ id: 'dsh-session-id-menu', factory() })
@@ -220,7 +221,7 @@ ESCAPE_AFTER_COPY_MS=900 / ESCAPE_AFTER_MISS_MS=50 /
 
 - mode: create
 - index: ready（Phase 1 代码落盘后重建：698 files / 9448 nodes / 38683 edges、lastIndexed 2026-09-05T17:20:57.837Z、builtWithVersion 1.1.0、pendingChanges=0、reindexRecommended=false。plan 阶段首次 init 为空索引 files=0，Phase 1 后 codegraph init 重建）
-- scope: 目标仓 plugin files（client.js、src/index.js、tests/*.test.mjs、package.json、cordis.patch.yml、README.md）；宿主侧只读引用（Rows.tsx / Menu.tsx / WorkspaceBrowser.tsx / service.ts / types.ts / locale index.ts），宿主零改动
+- scope: 目标仓 plugin files（lib/client.js、src/index.js、tests/*.test.mjs、package.json、cordis.patch.yml、README.md）；宿主侧只读引用（Rows.tsx / Menu.tsx / WorkspaceBrowser.tsx / service.ts / types.ts / locale index.ts），宿主零改动
 - impact（目标索引实测）: `apply::resolveSessionId(row)`（client.js:114-162）depth=2 → 3 affected symbols，全在本文件内（resolveSessionId:114 / injectItem:194 / handleMenu:177）——自包含调用链，无仓外依赖者。`bundle/dsh-session-id-menu/client.js` 为独立 file node（1-312）；`bundle/dsh-session-id-menu/src/index.js` 导出 constant `name = 'dsh-session-id-menu'`（:4）
 - affected: 自包含（client.js 调用链三符号）；browser half 经 `window.__ModuleLoader__.load` 注册，无静态 import 边
 - blast-radius: create 豁免（新产物，无既有能力面）
@@ -238,7 +239,7 @@ ESCAPE_AFTER_COPY_MS=900 / ESCAPE_AFTER_MISS_MS=50 /
 - 目标：插件在运行 GUI 生效，四层证据齐备
 - 范围：
   - runtime：`dev_inject_plugin {dir: <本仓根>}`（唯一输入 = source-only JS 包，无 build 步骤；直接注入证据见 Q8 runtime 项）→ `dev_plugin_status` / `dev_injected_list` 查 host ✓ 与 client 行 → Playwright headless 活体验证（自签 cookie，已验证 200）→ 点目标会话行 ⋯（本会话，aria-selected 行，displayTitle `deepseek-harness`）→ 截图（第 4 项"会话ID"可见）→ 点击 → 剪贴板 read-back == `session-c0406149-aa13-4279-85cf-a0f27336de34` → 截图序列 + ffmpeg GIF
-  - distribution：`npm pack` → 解包 tmp → 断言 tarball 含 package.json、client.js、src/index.js、cordis.patch.yml、README.md 且 `exports['./client']` 目标在 tarball 内
+  - distribution：`npm pack` → 解包 tmp → 断言 tarball 含 package.json、lib/client.js、src/index.js、cordis.patch.yml、README.md 且 `exports['./client']` 目标在 tarball 内
 - 依赖：Phase 1 审查 PASS
 - 完成判据：Acceptance criteria 1–5 全过，四层各有独立可判定证据（source 测试 / package-shape / runtime 注入+Playwright+GIF / distribution pack 内容）
 

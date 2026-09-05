@@ -19,7 +19,7 @@ test('package.json: identity and module shape', () => {
   assert.equal(pkg.main, 'src/index.js')
   assert.deepEqual(pkg.exports, {
     '.': './src/index.js',
-    './client': './client.js',
+    './client': './lib/client.js',
     './package.json': './package.json',
   })
 })
@@ -35,7 +35,7 @@ test('package.json: dsh manifest (bundle patch + web client inject)', () => {
 
 test('package.json: files/engines/test script', () => {
   assert.ok(pkg.files.includes('src'))
-  assert.ok(pkg.files.includes('client.js'))
+  assert.ok(pkg.files.includes('lib/client.js'))
   assert.ok(pkg.files.includes('cordis.patch.yml'))
   assert.ok(pkg.files.includes('README.md'))
   assert.equal(pkg.engines.node, '>=22')
@@ -56,8 +56,8 @@ test('src/index.js: stable name + no-op apply', async () => {
   assert.equal(mod.apply(), undefined)
 })
 
-test('client.js: __ModuleLoader__ module, zero imports, sessions+workspaces inject', () => {
-  const src = read('client.js')
+test('lib/client.js: __ModuleLoader__ module, zero imports, sessions+workspaces inject', () => {
+  const src = read('lib/client.js')
   assert.match(src, /window\.__ModuleLoader__\.load\(\{/)
   assert.match(src, /id: 'dsh-session-id-menu'/)
   assert.match(src, /exports\.apply = apply/)
@@ -69,8 +69,8 @@ test('client.js: __ModuleLoader__ module, zero imports, sessions+workspaces inje
   assert.doesNotMatch(src, /require\(/)
 })
 
-test('client.js: three-context id resolution + workspaces-ready gate', () => {
-  const src = read('client.js')
+test('lib/client.js: three-context id resolution + workspaces-ready gate', () => {
+  const src = read('lib/client.js')
   assert.match(src, /resolveSessionId/)
   assert.match(src, /aria-selected/)
   assert.match(src, /phase !== 'ready'/)
