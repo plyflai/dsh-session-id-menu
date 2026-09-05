@@ -48,9 +48,12 @@ function setup({ lang = 'en', sessions = [], workspaces = null, execCommand = tr
   globalThis.cancelAnimationFrame = dom.cancelAnimationFrame
   Object.defineProperty(globalThis, 'navigator', { value: clipboard === 'none' ? {} : { clipboard: clipObj }, configurable: true })
 
+  // Live seam: the 'sessions'/'workspaces' services carry their list stores
+  // on `.list` (ClientSessions.list / WorkspaceController.list); the
+  // snapshot is read through the store (Phase-2 runtime finding).
   const stores = {
-    sessions: { getSnapshot: () => sessionsSnap(sessions) },
-    workspaces: { getSnapshot: () => workspaces },
+    sessions: { list: { getSnapshot: () => sessionsSnap(sessions) } },
+    workspaces: { list: { getSnapshot: () => workspaces } },
   }
   const ctx = {
     effects: [],
@@ -742,12 +745,33 @@ test('sessions snapshot pending -> silent miss', async () => {
   const t = setup({ sessions: [], workspaces: { phase: 'ready', items: [] } })
   loadModule(t)
   t.loaded()[0].factory().apply(t.ctx)
-  t.ctx.get('sessions').getSnapshot = () => ({ phase: 'pending', ids: [], byId: {} })
+  t.ctx.get('sessions').list.getSnapshot = () => ({ phase: 'pending', ids: [], byId: {} })
   const { kebabInner } = t.makeRow(t.flatTree, { title: 'proj' })
   const { menu } = t.makeMenu()
   kebabInner.dispatchEvent(t.dom.makeEvent('pointerdown', {}))
   t.fireMenu(menu)
   t.flush()
+  t.clickMenuItem(menu)
+  await tick()
+  assert.equal(t.written.length, 0)
+  await sleep(70)
+  assert.deepEqual(t.escapes, ['Escape'])
+})
+
+test('malformed service seam (list store missing) -> silent miss, no copy (Phase-2 seam)', async () => {
+  const t = setup({ sessions: [S('s1', 'proj', 100)] })
+  loadModule(t)
+  t.loaded()[0].factory().apply(t.ctx)
+  // The live first-click failure mode: no `.list` seam at all — the read
+  // must degrade to a silent miss (50ms Escape), never an uncaught
+  // exception inside the click listener.
+  delete t.ctx.get('sessions').list
+  const { kebabInner } = t.makeRow(t.flatTree, { title: 'proj' })
+  const { menu } = t.makeMenu()
+  kebabInner.dispatchEvent(t.dom.makeEvent('pointerdown', {}))
+  t.fireMenu(menu)
+  t.flush()
+  assert.equal(t.menuItems(menu).length, 4)
   t.clickMenuItem(menu)
   await tick()
   assert.equal(t.written.length, 0)
