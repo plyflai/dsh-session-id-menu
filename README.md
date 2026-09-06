@@ -102,7 +102,7 @@ document.querySelector('[data-dsh-session-id]') // non-null when the item was in
 ```bash
 cd plugin/dsh-session-id-menu
 npm test            # node --test tests/*.test.mjs
-npm pack            # produce the distributable tgz (files: src, lib/client.js, cordis.patch.yml, README)
+npm pack            # produce the distributable tgz (files: src, lib/client.js, cordis.patch.yml, README.md, README.zh-CN.md, LICENSE)
 ```
 
 From a dsh-dev checkout you can also install the local copy: `dsh plugin --profile web add plugin/dsh-session-id-menu` (relative path is anchored to the caller's cwd).
