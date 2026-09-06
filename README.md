@@ -1,68 +1,116 @@
 # dsh-session-id-menu
 
-给 Workspace 侧边栏每个会话行的 kebab 菜单追加一个 **Session ID** 复制项：点击后把该会话的
-`session.id`（如 `session-c0406149-...`）写入系统剪贴板，标签短暂变为 `Copied`（zh 环境为 `已复制`）。
+[English](./README.md) | [中文](./README.zh-CN.md)
 
-## 行为契约（plan r3 PASS 定稿；code r1–r4 迭代（F8–F12）至 code r4 PASS；phase-2 runtime seam 修复后同步）
+<p align="center">
+<strong>Copy a session's id straight from the Workspace sidebar</strong>
+<br />
+One kebab-menu item — <em>zero dependencies, pure DOM, degrades silently</em>.
+</p>
 
-- **注入点**：点击任意会话行（`aria-selected` 存在，true/false 均可）的
-  `aria-label="Session actions for {name}"` kebab 按钮后，监听 `document.body` 下新出现的
-  `[role="menu"]`（Menu 原语 portal 到 body），在菜单末尾追加一个
-  `button[role="menuitem"][data-dsh-session-id="1"]`，结构与既有菜单项克隆一致（class /
-  icon span / label span），icon 为 ui-primitives `IconCopyOutline16` 的内联 SVG。
-  工作区头行（`aria-expanded`）与搜索结果行（button 自身）不捕获。
-- **归属关联**：`pointerdown`（capture）记录 pending（按钮 + 时间戳，≤600ms 有效）；菜单出现时
-  仅当存在 pending 且几何匹配（`|menu.left - button.left| ≤ 12px` 或水平重叠，兼容 Menu
-  `align='start'` 的 12px clamp 偏移；或右缘 clamp——kebab 靠近 viewport 右缘时宿主把菜单左拉到
-  `vw - menuWidth - 12`（`menu.right = vw - 12`），菜单可完全位于按钮左侧，接受条件 =
-  `button.left + menu.width > vw - 12` 且 `menu.right ≥ vw - 12 - 12`，code r3 F12）才注入。
-  无 pending 的菜单一律 no-op，不写任何标记（Menu 是 26 个 dependent 的共享原语，无点击证据不归因）。
-- **ID 解析（三上下文）**：行标题以行直接子 span 文本对 `sessions.byId[*].displayTitle`
-  反查取得（纯文本 span 优先、含元素子节点的 span 次之——头部状态槽可含 screen-reader
-  状态文本 + 圆点元素，非 displayTitle；按 DOM 顺序逐文本尝试、首个命中即停，code r2 F10
-  ——title span 先于 time span，time 标签撞名另一会话标题不再扩大候选）；
-  上下文由 `sectionHeader(row)` 祖先遍历判定
-  （行位于 groupSection 内逐行 span 包装中、section 同时持有工作区头行）：
-  - 扁平列表（祖先链达 `role=tree`、无头行）：候选 + `updatedAt` 取最新；
-  - 分组 workspace 段（头行文本反查匹配 `WorkspaceView.title`）：
-    限定到该 workspace 的 `sessionIds`；**workspaces 快照必须 `phase === 'ready'`，否则静默 miss（F7）**；
-  - 分组 ungrouped 段（头行文本不匹配任何 workspace）：从全局集合中排除所有 workspace `sessionIds` 的并集。
-  - sessions 快照非 ready 同样静默 miss。
-  - **快照读取 seam**：sessions/workspaces 快照经公共 `.list` store 读取——`sessions.list.getSnapshot()` /
-    `workspaces.list.getSnapshot()`（服务顶层**没有** `getSnapshot`；宿主 `ClientSessions.list`
-    service.ts:191/263、`WorkspaceController.list` client/service.ts:89）。seam 缺失或读取抛错 → null →
-    静默 miss（`lib/client.js` `readListSnapshot`，:190-198——phase-2 活体首点
-    `TypeError: sessions.getSnapshot is not a function` 的修复契约；接手改宿主快照读取时先看这里）。
-- **复制语义**：`navigator.clipboard.writeText` resolve → `Copied` 1200ms 后恢复 + 900ms 派发
-  Escape 关闭菜单；reject/无 API → `document.execCommand('copy')` 回退（textarea + select，
-  临时 textarea 在 finally 移除——success/false/throw 三路径无 DOM 残留，code r2 F11）；
-  两者皆败 → 静默（无 `Copied` 标签），50ms 派发 Escape。
-- **生命周期**：单个 `ctx.effect` 返回 cleanup：断开 observer、移除 pointerdown 监听、
-  取消全部 rAF/定时器、移除已注入的菜单项与 `data-dsh-sid` 标记；disposed 后新菜单不再注入。
+<p align="center">
+<a href="https://github.com/plyflai/dsh-session-id-menu/releases"><img src="https://img.shields.io/badge/version-0.1.0-181717?style=flat-square" alt="version"></a>
+<a href="https://github.com/plyflai/dsh-session-id-menu/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-181717?style=flat-square" alt="license"></a>
+<a href="https://github.com/plyflai/dsh-session-id-menu"><img src="https://img.shields.io/badge/GitHub-plyflai%2Fdsh--session--id--menu-181717?style=flat-square&logo=github" alt="GitHub"></a>
+</p>
 
-## 宿主侧
+<p align="center">
+<code>dsh plugin --profile &lt;name&gt; add https://github.com/plyflai/dsh-session-id-menu/releases/download/v0.1.0/dsh-session-id-menu-0.1.0.tgz</code>
+</p>
 
-`src/index.js` 导出 `name`（稳定 id）+ 空 `apply`——纯 DOM 插件，宿主侧无状态。
-`dsh.client` 声明 `platform: 'web'`（manifest `inject` = 两个 controller 包，信息性依赖，
-fiber 等待对应 store 就绪后激活 client 模块）；client bundle 级
-`exports.inject = ['sessions', 'workspaces', 'slots']`——其中 `slots` 为超级模组注入
-预检（`dev_inject_plugin` → `clientSkeletonProblems`）的骨架标记：预检文本校验 inject
-含 `slots` 且存在带已知 slot 名的 `register()`；纯 DOM 形态的 register 标记恒 false、
-运行时从不生效。client bundle 位于规范位置 `lib/client.js`（宿主 client-modules 经
-`exports['./client']` 解析，布局无关）。`cordis.patch.yml` 以
-`insert: id: dsh-session-id-menu` 追加装配。
+---
 
-## 验证阶梯
+`dsh-session-id-menu` adds a **Session ID** item to the `⋯` (kebab) menu of every session row in the DeepSeek Harness Web GUI. Clicking it copies that session's id to the clipboard, flashes a confirmation label, then closes the menu.
 
-1. **source**：`node --test tests/*.test.mjs` —— 34 个 behavior 用例（注入 / 归属关联 / 三上下文
-   解析 / F7 / F8-F9 状态槽（Idle/Running/Completed）与未选中行 / F10 title-time 撞名 /
-   F11 legacyCopy 残留（execCommand throw / select throw）/ F12 右缘 viewport clamp（菜单左拉至 clamp
-   边界且完全位于按钮左侧 → 注入；clamp 边界下无关菜单 → no-op）/ 复制语义 / 生命周期 / seam 缺失静默 miss（Phase-2））+ 9 个
-   package-shape 断言，基于手写 DOM stub（无 jsdom）。
-2. **package**：package-shape 测试覆盖 manifest / files / exports 与 dsh-workspace-folder-order
-   先例的一致性。
-3. **runtime**：`dev_inject_plugin`（超级模组直接注入）+ `dev_plugin_status` 列出 fiber 状态，
-   再用 Playwright 对 3080 实况 GUI 断言：会话行 kebab 菜单含 `Session ID` 项、点击后
-   `navigator.clipboard.readText()` 等于目标 session id、标签闪 `Copied`。
-4. **distribution**：`npm pack` 产物解包断言 tarball 含 package.json / lib/client.js /
-   src/index.js / cordis.patch.yml / README.md。
+## Why
+
+The session id (e.g. `s-066d994e...`) currently only appears in the status bar after you click into a session — no other UI path exposes it. Copying one requires clicking the session, finding the status bar, selecting the id, and copying by hand. `dsh-session-id-menu` puts it one click away: `⋯` → **Session ID** → clipboard.
+
+## How it works
+
+The plugin is a **pure-DOM client plugin**: no React, no npm dependencies, no build step. The browser half (`lib/client.js`, a `window.__ModuleLoader__.load` factory with zero imports) observes the host's DOM and correlates its own events:
+
+```
+[kebab pointerdown] ─► correlate the portaled [role=menu] (600ms window + 12px geometry)
+                       └► inject a Session ID menu item
+[Session ID click]  ─► resolve the id from the sessions / workspaces controller snapshots
+                       └► navigator.clipboard.writeText (execCommand fallback)
+                       └► flash "Copied", close the menu via the host's own Escape handler
+```
+
+- **Row disambiguation** — `displayTitle` is not unique, so the row's id is recovered by reverse-matching the row's span texts against the `sessions` snapshot `displayTitles` (leaf texts first, so status-slot/time text can never be mistaken for a title), narrowed by the row's workspace section against the `workspaces` snapshot (`sessionIds`), with a latest-`updatedAt` tie-break when duplicates survive.
+- **Graceful degradation by design** — a missing or not-`ready` snapshot, or a host DOM that no longer matches the contract, degrades to a **silent miss** (the menu just closes; nothing is thrown into the host's render path). The worst case on an incompatible host is "the item never appears", never "the GUI breaks". On dispose, every owned effect (observers, rAFs, timers, injected items, menu markers) is reclaimed, leaving no DOM residue.
+
+## Install
+
+Prerequisites: **Node ≥ 22**, `pnpm` on PATH, and one DSH profile (`~/.dsh/profiles/<name>/`).
+
+**Version-pinned (recommended)** — the release tgz is a byte-frozen artifact, identical on every machine:
+
+```bash
+dsh plugin --profile <name> add https://github.com/plyflai/dsh-session-id-menu/releases/download/v0.1.0/dsh-session-id-menu-0.1.0.tgz
+```
+
+**Latest (git)** — always tracks the `main` HEAD (no baseline guarantee):
+
+```bash
+dsh plugin --profile <name> add github:plyflai/dsh-session-id-menu
+```
+
+Update / remove (same spec syntax):
+
+```bash
+dsh plugin --profile <name> update dsh-session-id-menu
+dsh plugin --profile <name> remove dsh-session-id-menu
+```
+
+Two things worth knowing:
+
+- Install lands in the **profile directory** (`~/.dsh/profiles/<name>/node_modules`) — not in any source repo of yours. What your repo is named, or how it is laid out, is irrelevant to this plugin.
+- **Restart DSH** after installing (the fiber loads at assembly time; it does not hot-reload).
+
+## Verify
+
+Three steps after the restart:
+
+1. The `⋯` menu of a session row shows **Session ID** (「会话ID」 in a zh locale).
+2. Click it — the label flashes **Copied** (「已复制」).
+3. Paste — the clipboard holds that row's session id.
+
+Regressions are verified against a live DSH GUI running in Playwright (real kebab menu + real snapshot seam); the package itself ships `npm pack` + `node --test` (behavior + package-shape suites, zero deps, hand-rolled DOM stub — no jsdom).
+
+## Portability & troubleshooting
+
+**Tested against:** DeepSeek Harness commit `8541330cde` (2026-09-05, v0.1.3-alpha.1). If the plugin misbehaves, compare your harness commit to that baseline first.
+
+| Symptom | Likely cause |
+|---|---|
+| Item never appears in the `⋯` menu | DOM contract drift — the row / kebab / Menu structure changed upstream; compare harness commits |
+| Item appears, but clicking just closes the menu | Snapshot seam drift — `sessions.list.getSnapshot()` / `workspaces.list.getSnapshot()` layout or `phase` changed |
+| Plugin is listed, but nothing happens | Fiber not activated — `dsh --profile <name> --dump-config`, then restart DSH |
+
+Quick assertion in the GUI devtools console (right after opening a `⋯` menu):
+
+```js
+document.querySelector('[data-dsh-session-id]') // non-null when the item was injected
+```
+
+**Why this can't break your machine:** the artifact has zero npm dependencies (no version conflicts, no build scripts to intercept), zero imports in shipped code, and no absolute paths — it never references your source repo, and install lands in the profile directory. The only cross-machine dependency is the host runtime itself, and every host seam is read defensively; a mismatch is a silent miss, never a crash.
+
+## Development
+
+```bash
+cd plugin/dsh-session-id-menu
+npm test            # node --test tests/*.test.mjs
+npm pack            # produce the distributable tgz (files: src, lib/client.js, cordis.patch.yml, README)
+```
+
+From a dsh-dev checkout you can also install the local copy: `dsh plugin --profile web add plugin/dsh-session-id-menu` (relative path is anchored to the caller's cwd).
+
+## Status
+
+Early (v0.1.0). Behavior is verified against the pinned harness baseline above; the snapshot seam and DOM contract may drift as the harness evolves — when that happens, expect a plugin-side update, not a host-side fix.
+
+## License
+
+MIT

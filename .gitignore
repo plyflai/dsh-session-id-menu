@@ -1,6 +1,4 @@
-.dsh-expert/*
-!.dsh-expert/plans/
-!.dsh-expert/brief.md
+.dsh-expert/
 .dsh-flow/
 .codegraph/
 *.tgz
